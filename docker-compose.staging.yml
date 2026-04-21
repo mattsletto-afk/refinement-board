@@ -1,0 +1,34 @@
+version: '3.9'
+
+# Staging overlay — extends docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml up
+
+services:
+  app:
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/data/staging.db
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NEXT_PUBLIC_APP_ENV=staging
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.refinement-staging.rule=Host(`staging.refinement-board.internal`)'
+      - 'traefik.http.routers.refinement-staging.entrypoints=web'
+    volumes:
+      - staging-db:/data
+
+  # Lightweight reverse proxy for staging access
+  proxy:
+    image: traefik:v3
+    command:
+      - '--providers.docker=true'
+      - '--entrypoints.web.address=:80'
+      - '--log.level=INFO'
+    ports:
+      - '8080:80'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+volumes:
+  staging-db:

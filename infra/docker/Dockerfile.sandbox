@@ -1,0 +1,25 @@
+FROM node:22-alpine AS base
+
+# Install test runners before dropping package manager
+RUN npm install -g jest jest-cli 2>/dev/null \
+ && pip3 install pytest 2>/dev/null || true
+
+# Drop package manager — no installs possible inside sandbox after this
+RUN apk del apk-tools 2>/dev/null || true \
+ && rm -rf /var/cache/apk /root/.npm
+
+# Create non-root user with no shell
+RUN addgroup -S sandbox && adduser -S -G sandbox -s /bin/false sandbox
+
+# Output directory (bind-mounted by runner; tmpfs at runtime)
+RUN mkdir -p /output && chown sandbox:sandbox /output
+
+# Working directory for agent code
+WORKDIR /workspace
+RUN chown sandbox:sandbox /workspace
+
+USER sandbox
+
+# Default: run a JS script. Override CMD to invoke jest or pytest.
+ENTRYPOINT ["node", "--no-experimental-fetch"]
+CMD ["/workspace/run.js"]

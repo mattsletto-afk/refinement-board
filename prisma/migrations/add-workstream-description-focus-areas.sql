@@ -1,0 +1,2 @@
+ALTER TABLE "Workstream" ADD COLUMN IF NOT EXISTS "description" TEXT;
+ALTER TABLE "Workstream" ADD COLUMN IF NOT EXISTS "focusAreas" TEXT;

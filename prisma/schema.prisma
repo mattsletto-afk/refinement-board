@@ -1,0 +1,694 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Epic {
+  id           String    @id @default(cuid())
+  projectId    String
+  workstreamId String?
+  title        String
+  description  String?
+  status       String    @default("backlog")
+  priority     String    @default("medium")
+  estimate     Int?
+  score        Float?
+  ownerId      String?
+  tags         String?
+  notes        String?
+  sequence     Int?
+  committed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  project      Project?  @relation(fields: [projectId], references: [id])
+  features     Feature[]
+}
+
+model Feature {
+  id           String    @id @default(cuid())
+  projectId    String
+  epicId       String?
+  workstreamId String?
+  title        String
+  description  String?
+  status       String    @default("backlog")
+  priority     String    @default("medium")
+  estimate     Int?
+  score        Float?
+  ownerId      String?
+  tags         String?
+  notes        String?
+  sequence     Int?
+  committed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  project      Project?  @relation(fields: [projectId], references: [id])
+  epic         Epic?     @relation(fields: [epicId], references: [id])
+  stories      UserStory[]
+}
+
+model Story {
+  id        String   @id @default(cuid())
+  title     String
+  status    String   @default("backlog")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserStory {
+  id              String   @id
+  projectId       String
+  workstreamId    String?
+  categoryId      String?
+  epicId          String?
+  featureId       String?
+  parentStoryId   String?
+  title           String
+  userStory       String   @default("")
+  businessProblem String   @default("")
+  status          String   @default("backlog")
+  board           String   @default("Current Backlog")
+  priority        String   @default("medium")
+  valueScore      Int      @default(3)
+  riskScore       Int      @default(3)
+  urgencyScore    Int      @default(3)
+  effortScore     Int      @default(3)
+  meetingPoints   Int      @default(0)
+  baseScore       Int      @default(0)
+  finalScore      Int      @default(0)
+  rank            Int      @default(0)
+  inScope         Boolean  @default(false)
+  committed       Boolean  @default(false)
+  targetWindow    String?
+  requesterGroup  String   @default("")
+  ownerId         String?
+  tags            String   @default("")
+  notes           String   @default("")
+  sprintWeekStart Int?
+  sprintWeekEnd   Int?
+  sprintStream    String?
+  estimate        Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tasks           Task[]               @relation("StoryTasks")
+  children        UserStory[]          @relation("StoryChildren")
+  parent          UserStory?           @relation("StoryChildren", fields: [parentStoryId], references: [id])
+  category        Category?            @relation(fields: [categoryId], references: [id])
+  calendarStories CalendarEventStory[]
+  feature         Feature?             @relation(fields: [featureId], references: [id])
+  project         Project?             @relation("ProjectUserStories", fields: [projectId], references: [id])
+}
+
+model Task {
+  id              String    @id @default(cuid())
+  projectId       String?
+  storyId         String?
+  title           String
+  description     String?
+  estimate        Int?
+  status          String    @default("todo")
+  sequence        Int       @default(0)
+  ownerId         String?
+  blockedByTaskId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  story           UserStory? @relation("StoryTasks", fields: [storyId], references: [id])
+  project         Project?   @relation("ProjectTasks", fields: [projectId], references: [id])
+}
+
+model Risk {
+  id             String   @id @default(cuid())
+  projectId      String?
+  workstreamId   String?
+  title          String
+  description    String?
+  probability    String?
+  impact         String?
+  status         String   @default("open")
+  mitigationPlan String?
+  ownerId        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Milestone {
+  id           String    @id @default(cuid())
+  projectId    String?
+  workstreamId String?
+  title        String
+  description  String?
+  targetDate   DateTime?
+  status       String    @default("upcoming")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Workstream {
+  id         String   @id @default(cuid())
+  projectId  String?
+  name       String
+  color      String?
+  sequence   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  placements ProjectPersonaPlacement[]
+  project    Project?                   @relation("ProjectWorkstreams", fields: [projectId], references: [id])
+}
+
+model AgentRun {
+  id          String    @id @default(cuid())
+  projectId   String?
+  sessionId   String?
+  sprintId    String?
+  personaId   String?
+  agentType   String    @default("implementer")
+  mode        String?
+  status      String    @default("running")
+  summary     String?
+  tokensUsed  Int       @default(0)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  metadata    String?
+
+  suggestions AgentSuggestion[]
+  diff        RunDiff?
+  score       RunScore?
+  sprint      SimulationSprint?  @relation(fields: [sprintId], references: [id])
+  session     SimulationSession? @relation(fields: [sessionId], references: [id])
+}
+
+model AgentMemory {
+  id               String    @id @default(cuid())
+  agentId          String
+  projectId        String
+  content          String
+  runId            String?
+  createdAt        DateTime  @default(now())
+  schemaVersion    Int       @default(1)
+  retentionExpires DateTime?
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  projectId   String?
+  eventType   String?
+  actorType   String?
+  actorId     String?
+  runId       String?
+  sessionId   String?
+  entityType  String?
+  entityId    String?
+  entityTitle String?
+  details     String?
+  seqNum      Int?
+  prevHash    String?
+  entryHash   String?
+  createdAt   DateTime @default(now())
+}
+
+model LoopSession {
+  id               String    @id
+  projectId        String
+  status           String    @default("running")
+  storiesCompleted Int       @default(0)
+  storiesAttempted Int       @default(0)
+  tokensUsed       Int       @default(0)
+  startedAt        DateTime  @default(now())
+  stoppedAt        DateTime?
+  stopReason       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model CostLedger {
+  id        String   @id @default(cuid())
+  runId     String?
+  tokens    Int
+  costUsd   Float
+  createdAt DateTime @default(now())
+  model     String?
+}
+
+model ProposedChange {
+  id              String    @id @default(cuid())
+  changeType      String
+  filePath        String
+  description     String
+  diff            String
+  agentRunId      String?
+  storyId         String?
+  status          String    @default("pending_approval")
+  classification  String
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model StoryFileMap {
+  id           String   @id @default(cuid())
+  projectId    String
+  storyId      String
+  relativePath String
+  fileType     String   @default("implementation")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([storyId, relativePath])
+}
+
+model StoryFileMapping {
+  id               String   @id @default(cuid())
+  storyId          String
+  agentRunId       String
+  filePath         String?
+  completionStatus String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ProjectDocument {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  type        String
+  content     String
+  storyId     String?
+  agentRunId  String?
+  generatedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SimulationReport {
+  id               String    @id @default(cuid())
+  runId            String    @unique
+  generatedAt      DateTime  @default(now())
+  durationMs       Int?
+  status           String
+  storiesAttempted Int       @default(0)
+  storiesCompleted Int       @default(0)
+  storiesFailed    Int       @default(0)
+  storyOutcomes    String    @default("[]")
+  filesWritten     Int       @default(0)
+  testsRun         Int       @default(0)
+  testsPassed      Int       @default(0)
+  testsFailed      Int       @default(0)
+  tokensUsed       Int       @default(0)
+  costUsd          Float     @default(0)
+  agentRole        String?
+  projectId        String?
+  outputSummary    String    @default("")
+  score            Float?
+  efficiencyRating String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model ArchitectureDecisionRecord {
+  id           String   @id @default(cuid())
+  projectId    String   @default("")
+  number       Int
+  title        String
+  status       String   @default("proposed")
+  context      String   @default("")
+  decision     String   @default("")
+  consequences String   @default("")
+  agentRunId   String?
+  storyId      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([projectId, number])
+}
+
+model Project {
+  id          String       @id @default(cuid())
+  name        String
+  description String       @default("")
+  status      String       @default("active")
+  color       String       @default("#6366f1")
+  archivedAt  DateTime?
+  clerkUserId String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workstreams Workstream[] @relation("ProjectWorkstreams")
+  epics       Epic[]
+  features    Feature[]
+  userStories UserStory[]  @relation("ProjectUserStories")
+  tasks       Task[]       @relation("ProjectTasks")
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  projectId String?
+  title     String
+  content   String   @default("")
+  type      String   @default("changelog")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Persona {
+  id             String   @id @default(cuid())
+  name           String
+  description    String   @default("")
+  roleType       String   @default("contributor")
+  chesspiece     String   @default("pawn")
+  color          String   @default("#6366f1")
+  strengths      String   @default("")
+  weaknesses     String   @default("")
+  focusAreas     String   @default("")
+  defaultPrompts String   @default("[]")
+  systemPrompt   String   @default("")
+  agentType      String   @default("human")
+  model          String?
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  placements     ProjectPersonaPlacement[]
+}
+
+model Dependency {
+  id         String   @id @default(cuid())
+  sourceId   String
+  sourceType String
+  targetId   String
+  targetType String
+  type       String   @default("depends_on")
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+}
+
+model Category {
+  id           String      @id @default(cuid())
+  projectId    String
+  workstreamId String?
+  name         String
+  color        String      @default("#6366f1")
+  sequence     Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  stories      UserStory[]
+}
+
+model TriggerEvent {
+  id             String    @id
+  type           String
+  payload        String
+  idempotencyKey String    @unique
+  status         String    @default("queued")
+  retryCount     Int       @default(0)
+  maxRetries     Int       @default(3)
+  createdAt      DateTime  @default(now())
+  processedAt    DateTime?
+  failedAt       DateTime?
+  errorMessage   String?
+  simulationId   String?
+}
+
+model SimulationSession {
+  id             String   @id @default(cuid())
+  projectId      String
+  title          String
+  briefingText   String   @default("")
+  assignedAgents String   @default("[]")
+  tokenBudget    Int      @default(100000)
+  status         String   @default("planned")
+  runTemplate    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sprints SimulationSprint[]
+  runs    AgentRun[]
+}
+
+model SimulationSprint {
+  id           String    @id @default(cuid())
+  sessionId    String
+  sprintNumber Int
+  tokenBudget  Int       @default(20000)
+  tokensUsed   Int       @default(0)
+  status       String    @default("planned")
+  outputs      String    @default("[]")
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  session SimulationSession @relation(fields: [sessionId], references: [id])
+  runs    AgentRun[]
+}
+
+model SimJob {
+  id           String    @id
+  simulationId String
+  status       String    @default("queued")
+  retryCount   Int       @default(0)
+  maxRetries   Int       @default(3)
+  result       String?
+  errorMsg     String?
+  nextRetryAt  DateTime?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+}
+
+model RunScore {
+  id              String   @id
+  runId           String   @unique
+  agentId         String
+  itemsCreated    Int      @default(0)
+  itemsReworked   Int      @default(0)
+  itemsRejected   Int      @default(0)
+  sprintShipped   Int      @default(0)
+  tokensUsed      Int      @default(0)
+  efficiencyScore Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  run AgentRun @relation(fields: [runId], references: [id])
+}
+
+model RunDiff {
+  id           String   @id @default(cuid())
+  agentRunId   String   @unique
+  projectId    String
+  beforeState  String
+  afterState   String
+  diffSummary  String
+  humanSummary String
+  createdAt    DateTime @default(now())
+
+  run AgentRun @relation(fields: [agentRunId], references: [id])
+}
+
+model ApprovalGate {
+  id          String    @id @default(cuid())
+  projectId   String
+  runId       String
+  sessionId   String?
+  entityType  String
+  entityId    String?
+  entityTitle String
+  requestedBy String
+  status      String    @default("pending")
+  description String    @default("")
+  expiresAt   DateTime
+  decidedAt   DateTime?
+  decidedBy   String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+model ProjectSnapshot {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  description String   @default("")
+  dataJson    String
+  createdAt   DateTime @default(now())
+}
+
+model ExportJob {
+  id          String    @id @default(cuid())
+  projectId   String
+  templateId  String?
+  type        String
+  status      String    @default("pending")
+  filePath    String?
+  errorMsg    String?
+  metadata    String    @default("{}")
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+}
+
+model AgentLock {
+  id            String   @id @default(cuid())
+  runId         String
+  simulationId  String
+  itemId        String
+  itemType      String
+  itemTitle     String
+  lockedByAgent String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+}
+
+model AgentConflictEvent {
+  id              String   @id @default(cuid())
+  runId           String
+  simulationId    String
+  itemId          String
+  itemType        String
+  itemTitle       String
+  requestingAgent String
+  lockHeldByAgent String
+  reason          String
+  detectedAt      DateTime @default(now())
+}
+
+model AgentSuggestion {
+  id               String    @id @default(cuid())
+  projectId        String    @default("")
+  sessionId        String?
+  runId            String
+  fingerprintHash  String    @default("")
+  fingerprint      String    @default("")
+  type             String    @default("")
+  entityType       String    @default("")
+  summary          String
+  description      String    @default("")
+  rationale        String    @default("")
+  assumptions      String    @default("[]")
+  proposedChanges  String    @default("{}")
+  confidenceLevel  String    @default("medium")
+  impactedEntities String    @default("[]")
+  status           String    @default("proposed")
+  reviewStatus     String    @default("unreviewed")
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  supersedesIds    String    @default("[]")
+  duplicateOfId    String?
+  appliedEntityId  String?
+  appliedAt        DateTime?
+  blockReasons     String    @default("[]")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  run AgentRun @relation(fields: [runId], references: [id])
+}
+
+model ApplyAuditLog {
+  id           String    @id @default(cuid())
+  projectId    String
+  suggestionId String
+  runId        String?
+  entityId     String?
+  entityType   String    @default("")
+  action       String    @default("")
+  decision     String
+  blockReasons String    @default("[]")
+  error        String?
+  appliedAt    DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model Assumption {
+  id           String    @id @default(cuid())
+  projectId    String
+  workstreamId String?
+  title        String
+  description  String    @default("")
+  status       String    @default("active")
+  ownerId      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model CalendarEvent {
+  id           String   @id @default(cuid())
+  projectId    String
+  date         String
+  startHour    Int
+  durationMins Int      @default(0)
+  title        String
+  type         String   @default("meeting")
+  notes        String?
+  transcript   String?
+  recurrence   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  personas     CalendarEventPersona[]
+  stories      CalendarEventStory[]
+}
+
+model CalendarEventPersona {
+  eventId   String
+  personaId String
+
+  event     CalendarEvent @relation(fields: [eventId], references: [id])
+
+  @@id([eventId, personaId])
+}
+
+model CalendarEventStory {
+  eventId String
+  storyId String
+  role    String @default("discussed")
+
+  event   CalendarEvent @relation(fields: [eventId], references: [id])
+  story   UserStory     @relation(fields: [storyId], references: [id])
+
+  @@id([eventId, storyId])
+}
+
+model Decision {
+  id           String    @id @default(cuid())
+  projectId    String
+  workstreamId String?
+  title        String
+  description  String    @default("")
+  rationale    String    @default("")
+  decidedAt    DateTime?
+  ownerId      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ExportTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  description String   @default("")
+  config      String   @default("{}")
+  isBuiltIn   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectPersonaPlacement {
+  id           String     @id @default(cuid())
+  projectId    String
+  personaId    String
+  workstreamId String?
+  sequence     Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  persona      Persona?   @relation(fields: [personaId], references: [id])
+  workstream   Workstream? @relation(fields: [workstreamId], references: [id])
+}
