@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_URL=file:/data/prod.db
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NODE_ENV=production
+    volumes:
+      - db-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  sandbox:
+    build:
+      context: infra/docker
+      dockerfile: Dockerfile.sandbox
+    # No ports — only reached via docker exec from the app container
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:infra/seccomp/agent-sandbox.json
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    cpus: '0.5'
+    pids_limit: 64
+    restart: 'no'
+
+volumes:
+  db-data:
